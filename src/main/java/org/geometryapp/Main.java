@@ -1,51 +1,124 @@
 package org.geometryapp;
 
-import org.example.*;
-import org.example.threed.*;
+import org.twod.*;
+import org.threed.*;
 
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.List;
+
+class UniversalGeometryUtils {
+    public static class UniversalShape {
+        private final Object shape;
+        private final boolean is3D;
+
+        public UniversalShape(Shape shape2D) {
+            this.shape = shape2D;
+            this.is3D = false;
+        }
+
+        public UniversalShape(ThreeDimensionalShape shape3D) {
+            this.shape = shape3D;
+            this.is3D = true;
+        }
+
+        public boolean is3D() {
+            return is3D;
+        }
+
+        public Shape get2DShape() {
+            if (is3D) {
+                throw new IllegalStateException("Its 3D shape");
+            }
+            return (Shape) shape;
+        }
+
+        public ThreeDimensionalShape get3DShape() {
+            if (!is3D) {
+                throw new IllegalStateException("Its 2D shape");
+            }
+            return (ThreeDimensionalShape) shape;
+        }
+
+        public String getName() {
+            return is3D ? get3DShape().getName() : get2DShape().getName();
+        }
+
+        public double getArea() {
+            return is3D ? get3DShape().calculateSurfaceArea() : get2DShape().calculateArea();
+        }
+
+        @Override
+        public String toString() {
+            return shape.toString();
+        }
+    }
+
+    public static List<UniversalShape> createUniversalList(List<Shape> shapes2D,
+                                                           List<ThreeDimensionalShape> shapes3D) {
+        List<UniversalShape> result = new ArrayList<>();
+
+        if (shapes2D != null) {
+            shapes2D.forEach(shape -> result.add(new UniversalShape(shape)));
+        }
+
+        if (shapes3D != null) {
+            shapes3D.forEach(shape -> result.add(new UniversalShape(shape)));
+        }
+
+        return result;
+    }
+
+    public static void printStatistics(List<UniversalShape> shapes) {
+        long count2D = shapes.stream().filter(shape -> !shape.is3D()).count();
+        long count3D = shapes.stream().filter(UniversalShape::is3D).count();
+
+        double totalArea = shapes.stream().mapToDouble(UniversalShape::getArea).sum();
+        double totalVolume = shapes.stream()
+                .filter(UniversalShape::is3D)
+                .mapToDouble(shape -> shape.get3DShape().calculateVolume())
+                .sum();
+
+        System.out.printf("2D count: %d\n", count2D);
+        System.out.printf("3D count: %d\n", count3D);
+        System.out.printf("Total area: %.2f\n", totalArea);
+        System.out.printf("Total volume: %.2f\n", totalVolume);
+    }
+}
 
 public class Main {
     public static void main(String[] args) {
-        List<Shape> shapes = new ArrayList<>();
+        List<Shape> shapes2D = Arrays.asList(
+                new Circle(5.0),
+                new Rectangle(4.0, 6.0),
+                new Triangle(3.0, 4.0, 5.0)
+        );
 
-        shapes.add(new Circle(5.0));
-        shapes.add(new Rectangle(4.0, 6.0));
-        shapes.add(new Triangle(3.0, 4.0, 5.0));
-        shapes.add(new Cube(4.0));
-        shapes.add(new Sphere(3.0));
-        shapes.add(new Cylinder(3.0, 5.0));
+        List<ThreeDimensionalShape> shapes3D = Arrays.asList(
+                new Cube(4.0),
+                new Sphere(3.0),
+                new Cylinder(2.0, 5.0)
+        );
 
-        // geometry utils
-        System.out.println("=== Статистика ===");
+        System.out.println("2D:");
+        shapes2D.forEach(System.out::println);
 
-        GeometryUtils.ShapeCollectionResult separated = GeometryUtils.separate2DAnd3D(shapes);
-        System.out.println("2D фигуры:");
-        separated.getTwoDShapes().forEach(shape -> System.out.println("  - " + shape));
-        System.out.println("3D фигуры:");
-        separated.getThreeDShapes().forEach(shape -> System.out.println("  - " + shape));
+        System.out.println("3D:");
+        shapes3D.forEach(System.out::println);
 
-        System.out.printf("Сравнение круга и треугольника по площади: %d\n",
-                GeometryUtils.compareByArea(shapes.get(0), shapes.get(1)));
+        System.out.println();
 
-        GeometryUtils.findMaxArea(shapes).ifPresent(shape ->
-                System.out.printf("Фигура с максимальной площадью: %s (%.2f)\n",
-                        shape.getName(), shape.calculateArea()));
+        org.twod.GeometryUtils.findMaxArea(shapes2D)
+                .ifPresent(shape -> System.out.println("Max area (2D): " +
+                        shape.getName() + " - " + shape.calculateArea()));
 
-        GeometryUtils.findMinPerimeter(shapes).ifPresent(shape ->
-                System.out.printf("Фигура с минимальным периметром: %s (%.2f)\n",
-                        shape.getName(), shape.calculatePerimeter()));
+        org.threed.ThreeDUtils.findMaxVolume(shapes3D)
+                .ifPresent(shape -> System.out.println("Max volume (3D): " +
+                        shape.getName() + " - " + shape.calculateVolume()));
 
-        GeometryUtils.findMaxVolume(shapes).ifPresent(shape ->
-                System.out.printf("Максимальный объем: %s (%.2f)\n",
-                        shape.getName(), shape.calculateVolume()));
+        List<UniversalGeometryUtils.UniversalShape> allShapes =
+                UniversalGeometryUtils.createUniversalList(shapes2D, shapes3D);
 
-        System.out.printf("Общая площадь всех фигур: %.2f\n",
-                GeometryUtils.calculateTotalArea(shapes));
-        System.out.printf("Общий периметр всех фигур: %.2f\n",
-                GeometryUtils.calculateTotalPerimeter(shapes));
-        System.out.printf("Общий объем: %.2f\n",
-                GeometryUtils.calculateTotalVolume(shapes));
+        UniversalGeometryUtils.printStatistics(allShapes);
     }
 }
